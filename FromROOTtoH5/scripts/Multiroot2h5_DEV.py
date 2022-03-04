@@ -6,7 +6,7 @@ import os
 import ROOT
 
 #directory = '/user/vigilante/MUSIC_TESTECP_Feb22/mc' # specify your directory path
-directory = './WToMuNu_M-100_13TeV_P8' # specify your directory path
+directory = '../../../MUSiC-LearningNP_DATAINPUT/Data_MUSNP_Feb22/WToMuNu_M-100_13TeV_P8/' # specify your INPUT directory path
 #directory = './DirROOTFiles' # specify your directory path
 subdirs   = [x[0] for x in os.walk(directory)]
 
@@ -29,7 +29,7 @@ mcbkg_labels = [
 ]
 
 classes_to_scan = [
-    '_1Ele', '_1Muon' , '_2Ele' , '_2Muon'
+    '_1Ele;', '_1Muon;' , '_2Ele;' , '_2Muon;'
 ]
 
 # to encode the name of the process
@@ -224,7 +224,8 @@ if __name__ == '__main__':
     Lumi= 41480.
     ListTree     = []
 
-    classtree = "_1Muon;1"
+    #classtree = "_1Muon;1"
+    classtree = "_1Muon_2Jet;1"
 
     #SumPt3    = np.empty()
     #InvMass3  = np.empty()
@@ -281,7 +282,7 @@ if __name__ == '__main__':
             inFile.Close()
             #print "evUnweights"
             #print evUnWeights
-            nEv = evUnWeights[0]
+            nEv = evWeights[0]
             
             t = classtree
             #print t
@@ -369,7 +370,7 @@ if __name__ == '__main__':
     ### Save array  on h5 files
     t1=classtree
     t2=t1.replace(";1","")
-    fileH5_name= './Dir_OUTH5_Files/H5'+t2+'.h5'
+    fileH5_name= '../../../MUSiC-LearningNP_DATAOUTPUT/Dir_OUT_FILEH5/H5'+t2+'.h5'
     print fileH5_name
     #if not fileH5_name.exists():
     f  = h5py.File(fileH5_name, 'a')
