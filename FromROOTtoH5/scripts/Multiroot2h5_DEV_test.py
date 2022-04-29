@@ -11,11 +11,9 @@ data_labels = ['SingleMuon', 'SingleElectron', 'SinglePhoton', 'DoubleMuon','Dou
 
 def Create_dataset(dsetName,datasetName,dataName):
     if len(dataName)!=0:
-        dsetName=f.create_dataset(datasetName, data=dataName,chunks=(len(dataName),), maxshape=(None,))
-        Set_attributes(dsetName)
+        dsetName = f.create_dataset(datasetName, data=dataName,chunks=(len(dataName),), maxshape=(None,))
         print('')
         print('Shape of '+datasetName+ ' dataset is '+str(dsetName.shape))
-        #print('Attributes of '+datasetName+' are'+str(dsetName.attrs.items()))
         return
     else:
         return
@@ -23,38 +21,38 @@ def Create_dataset(dsetName,datasetName,dataName):
    
 def Append_to_dataset(dsetName,datasetName,dataName):
     if len(dataName)!=0:
-        dsetName=f[datasetName]
+        dsetName = f[datasetName]
         print('')
         print('Shape of '+datasetName+' dataset was '+str(dsetName.shape))
         #old_shape=dsetName.shape[0]                                                  # ! shape=(,) for previous dataset
 
         print('We want to extend the dataset by '+str(len(dataName)))
         dsetName.resize((dsetName.shape[0]+len(dataName),))                          # ! Resizing the dataset. This is okay
-        new_shape=dsetName.shape[0]                                                  # ! shape=(,) for resized dataset
-        entry_point=new_shape-len(dataName)
+        new_shape   = dsetName.shape[0]                                                  # ! shape=(,) for resized dataset
+        entry_point = new_shape-len(dataName)
 
         print('The entry point for new data is at position '+str(entry_point))
-        dsetName[-len(dataName):]=dataName                                             # ! Appending new data to the end of the dataset.
+        dsetName[-len(dataName):] = dataName                                             # ! Appending new data to the end of the dataset.
         print('New shape of '+datasetName+' dataset is '+str(dsetName.shape))
         return
     else:
         return
 
 
-def Set_attributes(dset):
-    
-    dset.attrs['ProcessName']           = str(pName)
-    dset.attrs['TotalEvents']           = tEv
-    dset.attrs['evCount']               = evCounts
-    dset.attrs['totalEventsUnweighted'] = tEvUnweighted
-    dset.attrs['label']                 = label
-    return        
+#def Set_attributes(dset):
+
+ #   dset.attrs['ProcessName']           = str(pName)
+ #   dset.attrs['TotalEvents']           = tEv
+ #   dset.attrs['evCount']               = evCounts
+ #   dset.attrs['totalEventsUnweighted'] = tEvUnweighted
+ #   dset.attrs['label']                 = label
+ #   return        
 
 
 def Read_Branches_from_classtree(fileup,classtree):
 
-    tree =fileup[classtree] 
-    branches=tree.arrays()
+    tree     = fileup[classtree] 
+    branches = tree.arrays()
     if branches['SumPt'].shape[0]==0:   
         print('Empty file!')
     else:
@@ -63,9 +61,9 @@ def Read_Branches_from_classtree(fileup,classtree):
 
 def Read_ListTree_from_file(fileup):
 
-    allClasses=fileup.keys()
-    nonClasses=["ProcessName","EvCounts","TotalEvents","TotalEventsUnweighted"]
-    classtree=[]
+    allClasses  = fileup.keys()
+    nonClasses  = ["ProcessName","EvCounts","TotalEvents","TotalEventsUnweighted"]
+    classtree   = []
 
     for i in range(len(allClasses)):
         if any(j in allClasses[i] for j in nonClasses):         # ! Removes non-events classes
@@ -104,7 +102,9 @@ if __name__ == '__main__':
     
     for i in range(len(processDirList)):
         if any(j in processDirList[i] for j in select_folders):
-            processDir.append(processDirList[i])                           # ! Defines all AnalysisOutput folders for all processes
+            processDir.append(processDirList[i])
+            processDir = [x for x in processDir if "Event-lists" not in x]
+            # ! Defines all AnalysisOutput folders for all processes
         else:
             continue
 
@@ -139,7 +139,7 @@ if __name__ == '__main__':
         for fileROOT in glob.glob('%s/ECP*'%(subdir)):   # get the ROOT files from the subdirectory
             
  
-            # Read attributes from each ROOT file
+            # Read characteristics from each ROOT file
             inFile            = ROOT.TFile.Open(fileROOT,"READ")
             totalEv           = inFile.Get("TotalEvents")
             processName       = inFile.Get("ProcessName")
@@ -147,7 +147,7 @@ if __name__ == '__main__':
             totalEvUnweighted = inFile.Get("TotalEventsUnweighted")
             inFile.Close()
 
-            pName         = processName[0]
+            pName         = str(processName[0])
             tEv           = totalEv[0]
             evCounts      = evCount[0]
             tEvUnweighted = totalEvUnweighted[0]
@@ -180,22 +180,30 @@ if __name__ == '__main__':
                     #print(branches)                                           # ! Prints the branches for each class. This is okay
                 
                 
-                    fileH5_Dir = outputDir+'/H5'+classtree+'.h5'
+                    fileH5_Dir = outputDir+'H5'+classtree+'.h5'
                                  
                     ### Creating/Cleaning the arrays for the h5 file
                     SumPt      = []
                     InvMass    = []
                     MET        = []
                     weights    = []
-        
-                    ### Reading variables from branches to fill arrays above
+                    PName      = []
+                    NewWeights = []
+
+                    ### Reading variables from branches to fill arrays
                     for i in range(entries_SumPt):
                         if branches is not None:
                             SumPt.append(branches['SumPt'][i])
                             MET.append(branches['MET'][i])
                             InvMass.append(branches['InvMass'][i])
                             weights.append(branches['Weight'][i])
-                
+                            PName.append(pName)                    
+                            if label==0:
+                                if len(weights)%1000==1:
+                                    NewWeights.append(branches['Weight'][i] * Lumi / tEv)
+                            else:
+                                NewWeights = weights 
+                                
                     print('')
                     print('------------------------------------------------------------------')
                     print('')
@@ -203,10 +211,10 @@ if __name__ == '__main__':
                     print('')                       
                  
                     # Redifining the weight
-                    for j in weights:
-                        new_weight = j * Lumi / tEv
-                        if len(weights)%1000==1:
-                            print new_weight                                            
+                    #for j in weights:
+                     #   new_weight = j * Lumi / tEv
+                      #  if len(weights)%1000==1:
+                       #     NewWeights.append(new_weight)
                 
                     # Creating h5 files, or appending new data if the file already exists
                 
@@ -219,7 +227,7 @@ if __name__ == '__main__':
                     print(" ! The following ROOT file has been closed !")
                     print(fileROOT)
                     print('')
-                    print("fileH5_Dir : ")
+                    print("The directory of the H5 file is : ")
                     print(fileH5_Dir)
                     print('')
                     print('-------------------------------------------------------------------------')
@@ -231,6 +239,8 @@ if __name__ == '__main__':
                             Create_dataset('invmass','InvMass',InvMass)
                             Create_dataset('met','MET',MET)
                             Create_dataset('Weights','weights',weights)
+                            Create_dataset('processname','ProcessName', PName)
+                            Create_dataset('newweights','NewWeights', NewWeights)
                             f.close()
                             print('')
                             print('! Sucessfully created '+fileH5_Dir)
@@ -241,11 +251,12 @@ if __name__ == '__main__':
                 
                     else:
                         with h5py.File(fileH5_Dir, 'a') as f:
-                            #if(dryo!=0):
                             Append_to_dataset('sumpt','SumPt',SumPt)
                             Append_to_dataset('invmass', 'InvMass',InvMass)
                             Append_to_dataset('met','MET',MET)
                             Append_to_dataset('Weights','weights',weights)
+                            Append_to_dataset('newweights','NewWeights', NewWeights)
+                            Append_to_dataset('processname','ProcessName',PName)
                             f.close()
                         print('')
                         print('! Sucessfully appended new data to '+fileH5_Dir)
