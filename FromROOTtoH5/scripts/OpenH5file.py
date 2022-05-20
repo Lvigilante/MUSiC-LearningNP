@@ -13,6 +13,7 @@ if __name__ == '__main__':
     parser.add_argument('-in','--inputDir', type=str, help="Directory of the h5 file to be opened.", required=True)
     parser.add_argument('-dsetName','--dsetName',type=str, help="Dataset to be printed", required=True)
     args = parser.parse_args()
+
     inputDir  = args.inputDir
     dataset   = args.dsetName
     
@@ -28,14 +29,31 @@ if __name__ == '__main__':
         for n in datasetNames:
             print(f[str(n)])
         
-        dset  = f.get(dataset)
-        array = np.array(dset)
-        proc  = f.get('ProcessName')
-        pName = np.array(proc)
+        dset    = f.get(dataset)
+        array   = np.array(dset)
+        process = f.get('ProcessName')        
+        pName   = np.array(process)
+        
 
-        print('')
-        print('Entries of '+ dataset +' are:')
-        print('')
-        print(array)
-        print('')
-        print('----------------------------------------')
+        if dataset == 'NewWeights':
+            mc_counts = sum(array)
+            print('')
+            print('Entries of NewWeights are : ')
+            print('')
+            print(array)
+            print('')
+            print('Total MC events are : '+ str(mc_counts))
+            print('')
+
+           # for i in range(len(array)):
+             #   if array[i]<0.0 or array[i]>50.0:
+                    #print('Process name : ' + str(pName[i]) + '   | NewWeights : ' + str(array[i]))                
+        else:
+            print('')
+            print('Entries of '+ dataset +' are :')
+            print('')
+            print(array)
+            print('')
+            print('----------------------------------------')
+     
+

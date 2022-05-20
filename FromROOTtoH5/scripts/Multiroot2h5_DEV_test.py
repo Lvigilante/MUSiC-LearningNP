@@ -1,10 +1,11 @@
 import numpy as np
-import h5py, glob
-import math
-import uproot
-import os
-import ROOT
-import argparse
+import h5py, glob, math, uproot, os, ROOT, argparse
+
+
+#############################################################################################################
+
+#############################################################################################################
+
 
 # Defining the labels for background MC and data samples
 data_labels = ['SingleMuon', 'SingleElectron', 'SinglePhoton', 'DoubleMuon','DoubleEG'] 
@@ -12,8 +13,8 @@ data_labels = ['SingleMuon', 'SingleElectron', 'SinglePhoton', 'DoubleMuon','Dou
 def Create_dataset(dsetName,datasetName,dataName):
     if len(dataName)!=0:
         dsetName = f.create_dataset(datasetName, data=dataName,chunks=(len(dataName),), maxshape=(None,))
-        print('')
-        print('Shape of '+datasetName+ ' dataset is '+str(dsetName.shape))
+#        print('')
+#        print('Shape of '+datasetName+ ' dataset is '+str(dsetName.shape))
         return
     else:
         return
@@ -22,41 +23,31 @@ def Create_dataset(dsetName,datasetName,dataName):
 def Append_to_dataset(dsetName,datasetName,dataName):
     if len(dataName)!=0:
         dsetName = f[datasetName]
-        print('')
-        print('Shape of '+datasetName+' dataset was '+str(dsetName.shape))
-        #old_shape=dsetName.shape[0]                                                  # ! shape=(,) for previous dataset
+#        print('')
+#        print('Shape of '+datasetName+' dataset was '+str(dsetName.shape))
+#        old_shape=dsetName.shape[0]                            # ! shape=(,) for previous dataset
 
-        print('We want to extend the dataset by '+str(len(dataName)))
-        dsetName.resize((dsetName.shape[0]+len(dataName),))                          # ! Resizing the dataset. This is okay
-        new_shape   = dsetName.shape[0]                                                  # ! shape=(,) for resized dataset
+#        print('We want to extend the dataset by '+str(len(dataName)))
+        dsetName.resize((dsetName.shape[0]+len(dataName),))     # ! Resizing the dataset. This is okay
+        new_shape   = dsetName.shape[0]                         # ! shape=(,) for resized dataset
         entry_point = new_shape-len(dataName)
 
-        print('The entry point for new data is at position '+str(entry_point))
-        dsetName[-len(dataName):] = dataName                                             # ! Appending new data to the end of the dataset.
-        print('New shape of '+datasetName+' dataset is '+str(dsetName.shape))
+#        print('The entry point for new data is at position '+str(entry_point))
+        dsetName[-len(dataName):] = dataName                    # ! Appending new data to the dataset.
+#        print('New shape of '+datasetName+' dataset is '+str(dsetName.shape))
         return
     else:
         return
 
 
-#def Set_attributes(dset):
+def Read_Branches_from_classname(fileup,classname):
 
- #   dset.attrs['ProcessName']           = str(pName)
- #   dset.attrs['TotalEvents']           = tEv
- #   dset.attrs['evCount']               = evCounts
- #   dset.attrs['totalEventsUnweighted'] = tEvUnweighted
- #   dset.attrs['label']                 = label
- #   return        
-
-
-def Read_Branches_from_classtree(fileup,classtree):
-
-    tree     = fileup[classtree] 
+    tree     = fileup[classname] 
     branches = tree.arrays()
     if branches['SumPt'].shape[0]==0:   
         print('Empty file!')
     else:
-        return branches                                        # ! Returns the branches for ONE CLASS
+        return branches           # ! Returns the branches for ONE CLASS
                     
 
 def Read_ListTree_from_file(fileup):
@@ -73,7 +64,9 @@ def Read_ListTree_from_file(fileup):
     return classtree                                            # ! Returns the class list for each ROOT file
     
 
-#--------------------------------------------------------------------------------------------------------------------------------------------
+#############################################################################################################
+
+#############################################################################################################
 
 
 if __name__ == '__main__':
@@ -82,48 +75,75 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()   
     parser.add_argument('-in','--inputDir',     type=str, help="Directory where the process folders are stored.", required=True)
     parser.add_argument('-out','--outputDir',   type=str, help="Directory to store the h5 files.", required=True)
-    #parser.add_argument('-h','--dryrun',   type=int,default=0, help="Launch a dryrun.", required=False)
+#   parser.add_argument('-h','--dryrun',   type=int,default=0, help="Launch a dryrun.", required=False)
+
     args = parser.parse_args()
-    
+
+#   dryo  = args.dryrun
     inputDir  = args.inputDir
-    #dryo  = args.dryrun
     outputDir = args.outputDir
    
-    # Initializing some variables
-    Lumi = 41480.
-    
-    # Looping over all FOLDERS to find MC/data samples 
-    processDirList = [x[0] for x in os.walk(inputDir)]
+    Lumi = 41480.       # Defining the integrated luminosity
+
+    processDirList = [x[0] for x in os.walk(inputDir)]   
     processDir     = []
     select_folders = ["AnalysisOutput"]
-    #print('')
-    #print('All possible directories are ')
-    #print(processDirList)
-    
+    temp_listdir1= [ item for item in os.listdir(inputDir) if os.path.isdir(os.path.join(inputDir,item))]
+#   print temp_listdir1
+
+    processList = []
+    for i in temp_listdir1:
+        inputdir = os.path.join(inputDir,i)
+        for x in os.listdir(inputdir):
+            processList.append(x)
+
+#    print "All processes are :"
+#    print processList
+
+
+    ########################################################################################################
+    ################################## Looping over PROCESS FOLDERS ########################################
+    ########################################################################################################
+
     for i in range(len(processDirList)):
         if any(j in processDirList[i] for j in select_folders):
             processDir.append(processDirList[i])
-            processDir = [x for x in processDir if "Event-lists" not in x]
-            # ! Defines all AnalysisOutput folders for all processes
+            processDir = [x for x in processDir if "Event-lists" not in x]  # processDir returns all AnalysisOutput grid subfolders 
         else:
             continue
-
-    print('')
-    print('ROOT files are collected from directories ')
-    print('')
-    print(processDir)                                                  
-
-    # Looping over all AnalysisOutput folders
     
-    for i in range(len(processDir)):                 # for each folder of processDir we do:
+#    print('')
+#    print('ROOT files are collected from the subdirectories ')
+#    print('')
+#    print(processDir)     
+
+    N_MC_dic = {}    # Dictionary of Process names and the corresponding N_MC denominators to be used in Eq. (2) 
+
+    ########################################################################################################
+    ################################ Looping over grid-i/ANALYSIS OUTPUT FOLDERS ###########################
+    ########################################################################################################
+    
+    for i in range(len(processDir)):                 
         
-        subdir=processDir[i]                         # define the subdirectories to get ROOT files from
-        print('')
-        print('---------------------------------------------------------------------------------')
-        print('')
-        print('')
-        print('Entering the subdirectory: '+subdir)
-        print('')
+        subdir = processDir[i]                         # define the subdirectories to get ROOT files from
+
+#        print('')
+#        print('Entering the subdirectory: '+subdir)
+#        print('')
+
+        for j in range(len(processList)):
+            if processList[j] in subdir:
+                processname = processList[j]
+#        print 'Processname is ' + processname         # ! GETTING PROCESSNAME FROM THE SUBDIR 
+        
+        #for h in range(len(temp_listdir1)):
+         #   if temp_listdir1[h] in subdir:
+          #      aggregated_process = temp_listdir1[h]
+        #print 'This process belongs to the Aggregated group : ' + aggregated_process         # ! GETTING AGGREGATED PROCESS GROUP FROM THE SUBDIR
+
+        
+        if N_MC_dic.has_key(processname)==False:
+            N_MC_dic[processname]=[]
 
         # Checking if is a MCbkg (background) samples, or data samples
         label = 0
@@ -133,23 +153,55 @@ if __name__ == '__main__':
             label = 0
         if len(glob.glob(subdir+"/ECP*")) == 0:
             continue
-            
-        # Looping over all ROOT files inside the subdir 
 
-        for fileROOT in glob.glob('%s/ECP*'%(subdir)):   # get the ROOT files from the subdirectory
-            
- 
-            # Read characteristics from each ROOT file
+                    
+        #####################################################################################################
+        ################# Looping over ROOT FILES to calculate sum(tEvUnweighted) ###########################
+        #####################################################################################################
+        
+        print ''
+        print (' Looping over all ROOT file in ' + processname + ' to calcualte sum(tEvUnweighted) ')
+        print ''
+        
+        for fileROOT in glob.glob('%s/ECP*'%(subdir)):   # open the ROOT file 
+
             inFile            = ROOT.TFile.Open(fileROOT,"READ")
-            totalEv           = inFile.Get("TotalEvents")
+            totalEvUnweighted = inFile.Get("TotalEventsUnweighted")   
+            inFile.Close()
+            tEvUnweighted = totalEvUnweighted[0]
+            N_MC_dic[processname].append(tEvUnweighted)
+    
+#        print ('The final values of tEvUnweighted for are :')
+#        print(N_MC_dic[processname])
+#        print ''
+        tot_processname = sum(N_MC_dic[processname])                        
+        print ( '  ' processname + '            | N_MC = sum(tEvUnweighted) : ' + str(tot_processname))
+        print ''
+        
+        
+        #####################################################################################################
+        ####################### Looping over ROOT FILES to create h5files ###################################
+        #####################################################################################################
+
+        #        print '  -------------------------- Writing into the h5 files -------------------------------------------------'
+
+        
+        for fileROOT in glob.glob('%s/ECP*'%(subdir)):   # open the ROOT file 
+            
+        #    print('')    
+        #    print('  ------------>   Reading ROOT file: '+ fileROOT)
+        #    print('')
+
+            inFile            = ROOT.TFile.Open(fileROOT,"READ")
             processName       = inFile.Get("ProcessName")
-            evCount           = inFile.Get("EvCounts")
-            totalEvUnweighted = inFile.Get("TotalEventsUnweighted")
+            evCount           = inFile.Get("EvCounts")               # number of accepted and unaccepted events             
+            totalEv           = inFile.Get("TotalEvents")            # sum of total event weight (no use here)
+            totalEvUnweighted = inFile.Get("TotalEventsUnweighted")  # N_MC : denominator factor for Eq. (2) 
             inFile.Close()
 
             pName         = str(processName[0])
-            tEv           = totalEv[0]
             evCounts      = evCount[0]
+            tEv           = totalEv[0]
             tEvUnweighted = totalEvUnweighted[0]
             
             with uproot.open(fileROOT) as fileup:
@@ -157,32 +209,38 @@ if __name__ == '__main__':
                 # Read the Classes from each ROOT file
                 ListTree_classes  = []
                 ListTree_classes  = Read_ListTree_from_file(fileup)   # ! The function returns classtree 
-                                 
-                print('')    
-                print('------------------------------------------------------------------------------------------------------------')          
-                print('')
-                print('')
-                print('Loading ROOT file: '+fileROOT)
-                print('')
-            
-                ###  Looping over all classes in the ROOT file
-            
-                for i  in range(len(ListTree_classes)):
+                                             
+                ############################################################################################
+                ############################## Looping over CLASSES ########################################
+                ############################################################################################
+
+                ML_Classes = ['_2Ele_1bJet','_1Ele_1Muon_1MET', '_1Ele_1Muon_1Jet','_1Ele_1Muon_1Jet_1MET'] 
+
+                for i in range(len(ListTree_classes)):
                     
-                    classtree=ListTree_classes[i]                              # ! Define a specific class
-                    branches=[]                              
-                    branches=Read_Branches_from_classtree(fileup,classtree)  # ! Read the branches from this class
+                    classname = ListTree_classes[i]                              # ! Define a specific class
+                    
+                    if classname not in ML_Classes:
+                        continue
+                    
+                    branches = []                              
+                    branches = Read_Branches_from_classname(fileup,classname)  # ! Read the branches from this class
+                    
                     if branches is not None:
-                        entries_SumPt=len(branches['SumPt'])
+                        entries_SumPt = len(branches['SumPt'])    # length on dataset SumPt
                     else:
                         print('! This file is empty. No entries appended to hdf5 file !')
                         print('')
-                    #print(branches)                                           # ! Prints the branches for each class. This is okay
-                
-                
-                    fileH5_Dir = outputDir+'H5'+classtree+'.h5'
-                                 
-                    ### Creating/Cleaning the arrays for the h5 file
+                    
+                        #print(branches)                                      # ! Prints the branches for each class 
+                    
+                    ### Defining the H5 file output name and directory 
+                    fileH5_Dir = outputDir+'H5'+classname+'.h5'
+                    #print('')
+                    #print("The directory of the H5 file is :"+ fileH5_Dir) 
+                    #print('')
+                    
+                    ### Initializing the arrays for the new h5 file
                     SumPt      = []
                     InvMass    = []
                     MET        = []
@@ -198,56 +256,37 @@ if __name__ == '__main__':
                             InvMass.append(branches['InvMass'][i])
                             weights.append(branches['Weight'][i])
                             PName.append(pName)                    
-                            if label==0:
-                                if len(weights)%1000==1:
-                                    NewWeights.append(branches['Weight'][i] * Lumi / tEv)
+                            if label==1:
+                                NewWeights = weights
                             else:
-                                NewWeights = weights 
-                                
-                    print('')
-                    print('------------------------------------------------------------------')
-                    print('')
-                    print('%s loaded. Length: %i'%(classtree.split('/')[-1],len(SumPt))) # ! Prints class name and number of events 
-                    print('')                       
-                 
-                    # Redifining the weight
-                    #for j in weights:
-                     #   new_weight = j * Lumi / tEv
-                      #  if len(weights)%1000==1:
-                       #     NewWeights.append(new_weight)
-                
-                    # Creating h5 files, or appending new data if the file already exists
-                
-                    # ! We want 1 single h5 file per classes (even if the data is coming from different process folders!) ! #
-              
+                                NewWeights = np.array(weights) * Lumi / tot_processname
+                            
+                    #print('')
+                    #print(' ***** %s loaded. Length: %i ***** '%(classname.split('/')[-1], entries_SumPt)) # ! Prints class name and number of events 
+                    #print('')                       
 
-                
 
-                    print('')
-                    print(" ! The following ROOT file has been closed !")
-                    print(fileROOT)
-                    print('')
-                    print("The directory of the H5 file is : ")
-                    print(fileH5_Dir)
-                    print('')
-                    print('-------------------------------------------------------------------------')
+                    #########################################################################################################
+                    ################ Creating h5 files (or appending new data if the file already exists)####################
+                    #########################################################################################################
+
+                    # ! We want 1 single h5 file per classes (even if the data is coming from different processes and root files ! 
 
                     if os.path.exists(fileH5_Dir)==False:
                         with h5py.File(fileH5_Dir, 'w') as f:
-                        
                             Create_dataset('sumpt','SumPt',SumPt)
                             Create_dataset('invmass','InvMass',InvMass)
                             Create_dataset('met','MET',MET)
                             Create_dataset('Weights','weights',weights)
                             Create_dataset('processname','ProcessName', PName)
-                            Create_dataset('newweights','NewWeights', NewWeights)
+                            Create_dataset('newweights','NewWeights',NewWeights)
                             f.close()
-                            print('')
-                            print('! Sucessfully created '+fileH5_Dir)
-                            print ('')
+                            #print('')
+                            #print('! Sucessfully created '+fileH5_Dir)
+                            #print ('')
                         
                             fileH5_Dir   = ''
-                            classtree    = ''
+                            classname    = ''
                 
                     else:
                         with h5py.File(fileH5_Dir, 'a') as f:
@@ -255,13 +294,17 @@ if __name__ == '__main__':
                             Append_to_dataset('invmass', 'InvMass',InvMass)
                             Append_to_dataset('met','MET',MET)
                             Append_to_dataset('Weights','weights',weights)
-                            Append_to_dataset('newweights','NewWeights', NewWeights)
                             Append_to_dataset('processname','ProcessName',PName)
+                            Append_to_dataset('newweights','NewWeights',NewWeights)
                             f.close()
-                        print('')
-                        print('! Sucessfully appended new data to '+fileH5_Dir)
-                        print ('')
+                            
+                        #print('')
+                        #print('! Sucessfully appended new data to '+fileH5_Dir)
+                        #print ('')
 
                         fileH5_Dir   = ''
-                        classtree    = ''
-              
+                        classname    = ''
+
+    print ''
+    print 'The dictionary for N_MC = sum(tEvUnweighted) for each process is :'
+    print N_MC_dic
