@@ -1,12 +1,6 @@
 import numpy as np
 import h5py, glob, math, uproot, os, ROOT, argparse
 
-
-#############################################################################################################
-
-#############################################################################################################
-
-
 # Defining the labels for background MC and data samples
 data_labels = ['SingleMuon', 'SingleElectron', 'SinglePhoton', 'DoubleMuon','DoubleEG'] 
 
@@ -66,8 +60,6 @@ def Read_ListTree_from_file(fileup):
 
 #############################################################################################################
 
-#############################################################################################################
-
 
 if __name__ == '__main__':
     
@@ -91,57 +83,47 @@ if __name__ == '__main__':
     #print temp_listdir1
 
     processList = []
+
     for i in temp_listdir1:
         inputdir = os.path.join(inputDir,i)
         for x in os.listdir(inputdir):
             processList.append(x)
    
-#    print "All processes are :"
-#    print processList
+    print "All processes are :"
+    print processList                # This prints a list of strings of ALL process names, which are read directly from the folders inside the directory  
 
 
     ########################################################################################################
-    ################################## Looping over PROCESS FOLDERS ########################################
+    ################################## Creating a list with the grid paths #################################
     ########################################################################################################
 
     for i in range(len(processDirList)):
         if any(j in processDirList[i] for j in select_folders):
             processDir.append(processDirList[i])
-            processDir = [x for x in processDir if "Event-lists" not in x]  # processDir returns all AnalysisOutput grid subfolders 
+            processDir = [x for x in processDir if "Event-lists" not in x]  
         else:
             continue
     
-#    print('')
-#    print('ROOT files are collected from the subdirectories ')
-#    print('')
-#    print(processDir)     
+    print('')
+    print('ROOT files are collected from the subdirectories ')
+    print('')
+    print(processDir)     # This prints a list of the complete path to the folder where each ROOT file is stored, e.g. ['DiPhoton/DiPhoton..../grid-0/Analysis-Output', DiPhoton/DiPhoton..../grid-1/Analysis-Output']
 
-    dic_evCounts = {}              # this will become {'Process name' : evCounts <array>}  
-    dic_totEv    = {}              # this will become {'Process name' : totalEvents <array>}  
-    dic_totEvUnweighted  = {}      # this will become {'Process name' : totalEventsUnweighted <array>}  
+    dic_evCounts = {}              # this will become {'Process name' : [evCounts1, evCounts2, ...]}  
+    dic_tEv      = {}              # this will become {'Process name' : [totalEvents1, totalEvents2, ...]}  
+    dic_tEvUnweighted  = {}        # this will become {'Process name' : [totalEventsUnweighted1, totalEventsUnweighted2, ...]}
 
     ########################################################################################################
-    ################################ Looping over grid-i/ANALYSIS OUTPUT FOLDERS ###########################
+    ####################################### Looping over grid FOLDERS ######################################
     ########################################################################################################
     
     for i in range(len(processDir)):                 
         
-        subdir = processDir[i]                         # define the subdirectories to get ROOT files from
-
-        #print('')
-        #print('Entering the subdirectory: '+subdir)
-        #print('')
-        
+        subdir = processDir[i]                         # subdir is a specific string in the processDir list, i.e. we are choosing one grid path to get the ROOT file from
+ 
         for j in range(len(processList)):
             if processList[j] in subdir:
-                processname = processList[j]
-
-        #print 'Processname is ' + processname         # ! READING PROCESS NAME FROM THE SUBDIR PATH 
-                        
-        if dic_evCounts.has_key(processname)==False:
-            dic_evCounts[processname]        = []          
-            dic_totEv[processname]           = []          
-            dic_totEvUnweighted[processname] = []          
+                processname = processList[j]           # the subdir string contains the processname substring of the ROOT file that is stored inside. we want to extract this substring
 
         # Checking if is a MC or data sample
         label = 0
@@ -152,96 +134,72 @@ if __name__ == '__main__':
         if len(glob.glob(subdir+"/ECP*")) == 0:
             continue
 
-                    
-        #####################################################################################################
-        ######################## Looping over ROOT FILES to append evCounts #################################
-        #####################################################################################################
-        
-        #print ''
-        #print (' Looping over all ROOT files in ' + processname + ' to calcualte sum(evCounts) ')
-        #print ''
-        
-        for fileROOT in glob.glob('%s/ECP*'%(subdir)):   # open the ROOT file 
+        print('')
+        print('Entering the subdirectory: '+subdir) 
+        print('')
+        print 'Processname is ' + processname         # this prints the corresponding processname substring to the subdir string
 
-            inFile   = ROOT.TFile.Open(fileROOT,"READ")
-            evCount  = inFile.Get("EvCounts")               # number of accepted and unaccepted events
-            totalEv  = inFile.Get("TotalEvents")            # sum of total event weight
-            totalEvUnweighted = inFile.Get("TotalEventsUnweighted")
-            inFile.Close()
-
-            evCounts  = evCount[0]
-            totEv     = totalEv[0]
-            totEvUnweighted = totalEvUnweighted[0]
-
-            dic_evCounts[processname].append(evCounts)
-            dic_totEv[processname].append(totEv)
-            dic_totEvUnweighted[processname].append(totEvUnweighted)
-            
-    
-#        print ('The final values of evCounts for are :')
-#        print(N_MC_dic[processname])
-#        print ''
-        
         #####################################################################################################
         ####################### Looping over ROOT FILES to create h5files ###################################
         #####################################################################################################
 
-        #print '  -------------------------- Writting the h5 files ----------------------------------------------------'
+        #print '  -------------------------- Opening the ROOT file and creating the h5 files -------------------------------------------------'
 
         
-        for fileROOT in glob.glob('%s/ECP*'%(subdir)):   # open the ROOT file 
+        for fileROOT in glob.glob('%s/ECP*'%(subdir)):    # we are looping over ROOT files inside the subdir (which is only one ROOT file in our case)  
             
-#            print('')    
- #           print('  ------------>   Reading ROOT file: '+ fileROOT)
-  #          print('')
-
-            inFile            = ROOT.TFile.Open(fileROOT,"READ")
+            inFile            = ROOT.TFile.Open(fileROOT,"READ")     # we are reading some stuff from the ROOT file
             processName       = inFile.Get("ProcessName")
             evCount           = inFile.Get("EvCounts")               # number of accepted and unaccepted events             
             totalEv           = inFile.Get("TotalEvents")            # sum of total event weight
             totalEvUnweighted = inFile.Get("TotalEventsUnweighted")
-            inFile.Close()
+            inFile.Close()                               # we are cloasing the ROOT file
 
             pName         = str(processName[0])
             evCounts      = evCount[0]
             tEv           = totalEv[0]
             tEvUnweighted = totalEvUnweighted[0]
             
-            with uproot.open(fileROOT) as fileup:
-            
-                # Read the Classes from each ROOT file
-                ListTree_classes  = []
-                ListTree_classes  = Read_ListTree_from_file(fileup)   # ! The function returns classtree 
-                                             
-                ############################################################################################
-                ############################## Looping over CLASSES ########################################
-                ############################################################################################
+            if dic_evCounts.has_key(pName)==False:     # initially our dictionaries are empty, so we create an empty list for each new pName 
+                dic_evCounts[pName]      = []
+                dic_tEv[pName]           = []          
+                dic_tEvUnweighted[pName] = []          
 
-                ML_Classes = ['_1Ele_1Muon_1MET'] #'_2Ele_1bJet', '_1Ele_1Muon_1MET', '_1Ele_1Muon_1Jet','_1Ele_1Muon_1Jet_1MET'] 
+            dic_evCounts[pName].append(evCounts)      # if the key pName already exists in our dictionaries, then we append the corresponding variable to the list
+            dic_tEv[pName].append(tEv)
+            dic_tEvUnweighted[pName].append(tEvUnweighted)
+
+
+            ############################################################################################
+            ############################## Looping over CLASSES ########################################
+            ############################################################################################
+
+            with uproot.open(fileROOT) as fileup:     # We are opening the ROOT file and pass it to the functions which read the classtree and branches
+            
+                ListTree_classes  = []
+                ListTree_classes  = Read_ListTree_from_file(fileup)   # The function returns classtree 
+                                             
+                ML_Classes = ['_2Ele_1bJet', '_1Ele_1Muon_1MET', '_1Ele_1Muon_1Jet','_1Ele_1Muon_1Jet_1MET']   # these are the only classes we are interested for now
 
                 for i in range(len(ListTree_classes)):
                     
-                    classname = ListTree_classes[i]                              # ! Define a specific class
+                    classname = ListTree_classes[i]                              # we are choosing a specific class from the classtree
                     
-                    if classname not in ML_Classes:
+                    if classname not in ML_Classes:                               # we only want to execute the code for the 4 classes above in ML_Classes
                         continue
                     
                     branches = []                              
-                    branches = Read_Branches_from_classname(fileup,classname)  # ! Read the branches from this class
+                    branches = Read_Branches_from_classname(fileup,classname)  # This returns the branches for the corresponding class
                     
                     if branches is not None:
-                        entries_SumPt = len(branches['SumPt'])    # length on dataset SumPt
+                        entries_SumPt = len(branches['SumPt'])   # this is the number of events
                     else:
                         print('! This file is empty. No entries appended to hdf5 file !')
                         print('')
                     
-                        #print(branches)                                      # ! Prints the branches for each class 
+                        #print(branches)         
                     
-                    ### Defining the H5 file output name and directory 
-                    fileH5_Dir = outputDir+'H5'+classname+'.h5'
-                    #print('')
-                    #print("The directory of the H5 file is :"+ fileH5_Dir) 
-                    #print('')
+                    fileH5_Dir = outputDir+'H5'+classname+'.h5'     # we are defining the H5 file name and output directory 
                     
                     ### Initializing the arrays for the new h5 file
                     SumPt      = []
@@ -249,7 +207,6 @@ if __name__ == '__main__':
                     MET        = []
                     weights    = []
                     PName      = []
-                    #NewWeights = []
 
                     ### Reading variables from branches to fill arrays
                     for i in range(entries_SumPt):
@@ -265,10 +222,10 @@ if __name__ == '__main__':
                     #print('')                       
 
                     #########################################################################################################
-                    ################ Creating h5 files (or appending new data if the file already exists)####################
+                    ################ Creating h5 files (or appending new data if the file already exists) ###################
                     #########################################################################################################
 
-                    # ! We want 1 single h5 file per classes (even if the data is coming from different processes and root files ! 
+                    # We only create 1 h5 file per class but the data inside is being appended from different processes and root files, at each loop iterations 
 
                     if os.path.exists(fileH5_Dir)==False:
                         with h5py.File(fileH5_Dir, 'w') as f:
@@ -302,48 +259,53 @@ if __name__ == '__main__':
     
 
     #########################################################################################################
-    ######################### Calculating tot_N_MC and NewWeights for each process ##########################
+    ######################### Calculating N_MC and NewWeights for EACH PROCESS ##############################
     #########################################################################################################    
 
-    for classname in ML_Classes:   
+    print ''
+    print ' ---------------------- Calculating NewWeights dataset and appending to the H5 files ------------------------------'
 
-        fileH5_Dir = outputDir+'H5'+classname+'.h5'
+    ## we are now outside of all loops. All H5 files have been created with 5 datasets each (SumPt, InvMass, MET, weights, ProcessName).  
 
-        with h5py.File(fileH5_Dir, 'r+') as f:
+    if label == 0 :
 
-            sumpt      = f['SumPt'] 
-            weights1   = f['weights']
-            procName   = f['ProcessName']
+        for classname in ML_Classes:     # we are only interested in 4 classes, i.e. we only want to open 4 H5 files
 
-            NewWeights = []
-            NewWeights_lastweight = []
+            fileH5_Dir = outputDir+'H5'+classname+'.h5'    # we are defining the path to the H5 file we want to open
 
-            
-            if label==1:
-                continue
-            
-            else:
+            with h5py.File(fileH5_Dir, 'r+') as f:   # opening the H5 file
 
-                for i in range(len(sumpt)):
+                sumpt      = f['SumPt']              # we read these 3 datasets from the H5 file
+                weights1   = f['weights']
+                procName   = f['ProcessName']
                 
-                    if procName[i] in dic_evCounts.keys() : #and sumpt[i]>125. and sumpt[i]<1100.: 
+                NewWeights = []                      # we create 2 new empty lists which later on will be added as 2 new datasets in the H5 file
+                NewWeights_lastweight = []
 
-                        N_MC = sum(dic_totEvUnweighted[procName[i]])
-                        NewWeights.append(weights1[i] * Lumi / N_MC)
+                for i in range(len(sumpt)):          # we are looping over the events in the dataset
+                 
+                    if procName[i] in dic_evCounts.keys() : #and sumpt[i]>125. and sumpt[i]<1100. :             # check if the processname for this event is a key in the dictionary
 
-                        N_MC_lastweight = N_MC + dic_totEvUnweighted[procName[i]][-1]                 
+                        N_MC = sum(dic_tEvUnweighted[procName[i]])    # we are accesing the list of tEvUnweighted corresponding to this processname and we are summing it 
+                        NewWeights.append(weights1[i] * Lumi / N_MC)  # we are defining the new weight and appending it to our empty list created above
+
+                        N_MC_lastweight = N_MC + dic_tEvUnweighted[procName[i]][-1]                 # this is the same as before, but we are adding the last entry of the list twice
                         NewWeights_lastweight.append(weights1[i] * Lumi / N_MC_lastweight)
 
                     else:
-                        NewWeights.append(0.)
-                        NewWeights_lastweight.append(0.)
-
-            #Create_dataset('newweights','NewWeights',NewWeights)
-
-        print ' ---------> sum(NewWeights) is :' + str(sum(NewWeights)) 
-        print ' ---------> sum(NewWeights_lastweight) is :' + str(sum(NewWeights_lastweight)) 
+                        continue
+                      #  NewWeights.append(0.)                     # if we want to apply the sumpt cuts above, we should append a value of 0 for the values that fall outside the sumpt range
+                      #  NewWeights_lastweight.append(0.)
 
 
+                Create_dataset('newweights','NewWeights',NewWeights)  # we are storing the NewWeights list as a dataset in the H5 file
+
+
+        print ' ---------> sum(NewWeights) is :' + str(sum(NewWeights))   # we are printing the sum of all values inside the NewWeights list. This should be the number of MC events 
+        print ' ---------> sum(NewWeights_lastweight) is :' + str(sum(NewWeights_lastweight))  
+
+        else : 
+            continue  # if label = 1 (i.e. the H5 file corresponds to Data) we do not create the NewWeights list or dataset)
                     
 
 
